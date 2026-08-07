@@ -20,6 +20,24 @@ class Settings:
     default_mode: str
     data_dir: str
     device: int
+    max_clip_seconds: float
+    max_upload_mb: float
+    sample_fps: float
+    max_search_frames: int
+
+
+def _as_float(value: str | None, default: float) -> float:
+    try:
+        return float(value) if value else default
+    except ValueError:
+        return default
+
+
+def _as_int(value: str | None, default: int) -> int:
+    try:
+        return int(value) if value else default
+    except ValueError:
+        return default
 
 
 @lru_cache
@@ -37,4 +55,8 @@ def get_settings() -> Settings:
         default_mode=mode,
         data_dir=os.environ.get("LA_DATA_DIR", "./data"),
         device=device,
+        max_clip_seconds=_as_float(os.environ.get("LA_MAX_CLIP_SECONDS"), 120.0),
+        max_upload_mb=_as_float(os.environ.get("LA_MAX_UPLOAD_MB"), 200.0),
+        sample_fps=_as_float(os.environ.get("LA_SAMPLE_FPS"), 2.0),
+        max_search_frames=_as_int(os.environ.get("LA_MAX_SEARCH_FRAMES"), 150),
     )

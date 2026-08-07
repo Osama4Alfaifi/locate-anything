@@ -5,6 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import AppShell from "./components/AppShell";
 import "./index.css";
+import DashcamPage from "./pages/DashcamPage";
 import HistoryPage from "./pages/HistoryPage";
 import SearchPage from "./pages/SearchPage";
 import SystemPage from "./pages/SystemPage";
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<SearchPage />} />
+            <Route path="dashcam" element={<DashcamPage />} />
             <Route path="history" element={<HistoryPage />} />
             <Route path="system" element={<SystemPage />} />
           </Route>

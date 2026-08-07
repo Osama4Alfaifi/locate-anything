@@ -4,6 +4,7 @@ import HealthBadge from "./HealthBadge";
 
 const NAV = [
   { to: "/", label: "Scope", glyph: "⊹", end: true },
+  { to: "/dashcam", label: "Dashcam", glyph: "▶", end: false },
   { to: "/history", label: "Log", glyph: "≡", end: false },
   { to: "/system", label: "System", glyph: "◊", end: false },
 ];

@@ -84,3 +84,59 @@ export interface HistoryList {
   limit: number;
   offset: number;
 }
+
+export type ClipStatus = "extracting" | "ready" | "error";
+export type SearchStatus = "queued" | "running" | "done" | "error" | "cancelled";
+
+export interface ClipInfo {
+  id: string;
+  filename: string;
+  status: ClipStatus;
+  error: string | null;
+  duration_s: number | null;
+  fps: number | null;
+  width: number | null;
+  height: number | null;
+  sample_fps: number;
+  frame_count: number;
+  video_url: string;
+  created_at: string;
+}
+
+export interface ClipList {
+  items: ClipInfo[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ClipMatch {
+  frame_id: string;
+  frame_index: number;
+  timestamp_ms: number;
+  image_url: string;
+  width: number;
+  height: number;
+  boxes: Box[];
+  points: Point[];
+  raw: string;
+}
+
+export interface ClipSearchStatus {
+  id: string;
+  clip_id: string;
+  task: string;
+  prompt: string;
+  generation_mode: GenerationMode;
+  status: SearchStatus;
+  error: string | null;
+  frames_total: number;
+  frames_done: number;
+  matches: ClipMatch[] | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface ClipSearchList {
+  items: ClipSearchStatus[];
+}

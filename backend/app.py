@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from PIL import Image
 
+import clips
 from config import VALID_MODES, get_settings
 from schemas import (
     DeviceRequest,
@@ -72,6 +73,9 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.settings = settings
     app.state.store = Store(settings.data_dir)
+    app.state.store.reconcile_interrupted_jobs()
+    app.state.job_lock = threading.Lock()
+    app.state.cancelled_searches: set[str] = set()
     svc = EngineService(settings)
     svc.start()
     app.state.svc = svc
@@ -85,6 +89,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(clips.router, prefix="/api")
 
 
 def _image_url(search_id: str) -> str:

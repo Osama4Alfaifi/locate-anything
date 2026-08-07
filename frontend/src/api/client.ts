@@ -1,4 +1,13 @@
-import type { DevicesResponse, Health, HistoryList, LocateResult, TaskInfo } from "./types";
+import type {
+  ClipInfo,
+  ClipList,
+  ClipSearchStatus,
+  DevicesResponse,
+  Health,
+  HistoryList,
+  LocateResult,
+  TaskInfo,
+} from "./types";
 
 const API_BASE_KEY = "la_api_base";
 
@@ -79,4 +88,17 @@ export const api = {
     req<{ deleted: string }>(`/api/history/${id}`, { method: "DELETE" }),
   locate: (form: FormData) =>
     req<LocateResult>("/api/locate", { method: "POST", body: form }),
+  uploadClip: (form: FormData) => req<ClipInfo>("/api/clips", { method: "POST", body: form }),
+  listClips: (limit = 50, offset = 0) =>
+    req<ClipList>(`/api/clips?limit=${limit}&offset=${offset}`),
+  getClip: (id: string) => req<ClipInfo>(`/api/clips/${id}`),
+  deleteClip: (id: string) => req<{ deleted: string }>(`/api/clips/${id}`, { method: "DELETE" }),
+  startClipSearch: (clipId: string, form: FormData) =>
+    req<ClipSearchStatus>(`/api/clips/${clipId}/search`, { method: "POST", body: form }),
+  getClipSearch: (clipId: string, searchId: string) =>
+    req<ClipSearchStatus>(`/api/clips/${clipId}/searches/${searchId}`),
+  cancelClipSearch: (clipId: string, searchId: string) =>
+    req<{ cancelling: string }>(`/api/clips/${clipId}/searches/${searchId}/cancel`, {
+      method: "POST",
+    }),
 };

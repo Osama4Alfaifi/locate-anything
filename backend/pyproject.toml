@@ -5,13 +5,16 @@ description = "FastAPI backend for the LocateAnything-3B web UI"
 requires-python = ">=3.10"
 # Light deps needed even in mock mode. Heavy GPU deps (torch, transformers,
 # etc.) live in requirements.txt and are imported lazily by worker.py, so the
-# test suite and mock mode run without them.
+# test suite and mock mode run without them. opencv-python-headless is here
+# (not lazy) because video frame decoding runs the same in mock and real mode
+# — mock mode only fakes the model, not the video source.
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.7",
     "python-multipart>=0.0.9",
     "pillow>=10.3",
+    "opencv-python-headless==4.11.0.86",
 ]
 
 [project.optional-dependencies]
@@ -23,7 +26,7 @@ dev = [
 ]
 
 [tool.setuptools]
-py-modules = ["app", "config", "schemas", "tasks", "worker", "mock_engine", "storage"]
+py-modules = ["app", "config", "schemas", "tasks", "worker", "mock_engine", "storage", "video", "clips"]
 
 [tool.ruff]
 line-length = 100

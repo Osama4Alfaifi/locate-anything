@@ -90,3 +90,56 @@ class HistoryList(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ClipInfo(BaseModel):
+    id: str
+    filename: str
+    status: str
+    error: str | None = None
+    duration_s: float | None = None
+    fps: float | None = None
+    width: int | None = None
+    height: int | None = None
+    sample_fps: float
+    frame_count: int
+    video_url: str
+    created_at: str
+
+
+class ClipList(BaseModel):
+    items: list[ClipInfo]
+    total: int
+    limit: int
+    offset: int
+
+
+class ClipMatch(BaseModel):
+    frame_id: str
+    frame_index: int
+    timestamp_ms: int
+    image_url: str
+    width: int
+    height: int
+    boxes: list[Box]
+    points: list[Point]
+    raw: str
+
+
+class ClipSearchStatus(BaseModel):
+    id: str
+    clip_id: str
+    task: str
+    prompt: str
+    generation_mode: str
+    status: str
+    error: str | None = None
+    frames_total: int
+    frames_done: int
+    matches: list[ClipMatch] | None = None
+    created_at: str
+    finished_at: str | None = None
+
+
+class ClipSearchList(BaseModel):
+    items: list[ClipSearchStatus]
