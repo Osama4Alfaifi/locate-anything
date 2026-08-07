@@ -210,7 +210,9 @@ class Store:
         ).fetchall()
         return [dict(r) for r in rows], total
 
-    def update_clip_status(self, clip_id: str, status: str, *, error: str | None = None, **metadata) -> None:
+    def update_clip_status(
+        self, clip_id: str, status: str, *, error: str | None = None, **metadata
+    ) -> None:
         self._update("clips", clip_id, status=status, error=error, **metadata)
 
     def delete_clip(self, clip_id: str) -> bool:
@@ -277,11 +279,18 @@ class Store:
         self._conn.commit()
         return self.get_search(search_id)
 
-    def update_search_progress(self, search_id: str, frames_done: int, status: str = "running") -> None:
+    def update_search_progress(
+        self, search_id: str, frames_done: int, status: str = "running"
+    ) -> None:
         self._update("clip_searches", search_id, status=status, frames_done=frames_done)
 
     def finish_search(
-        self, search_id: str, status: str, *, matches: list[dict] | None = None, error: str | None = None
+        self,
+        search_id: str,
+        status: str,
+        *,
+        matches: list[dict] | None = None,
+        error: str | None = None,
     ) -> None:
         self._update(
             "clip_searches",
@@ -293,7 +302,9 @@ class Store:
         )
 
     def get_search(self, search_id: str) -> dict | None:
-        row = self._conn.execute("SELECT * FROM clip_searches WHERE id = ?", (search_id,)).fetchone()
+        row = self._conn.execute(
+            "SELECT * FROM clip_searches WHERE id = ?", (search_id,)
+        ).fetchone()
         return self._row_to_search_dict(row) if row else None
 
     def list_searches(self, clip_id: str) -> list[dict]:

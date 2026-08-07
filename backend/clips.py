@@ -321,7 +321,9 @@ def start_search(
     if clip is None:
         raise HTTPException(status_code=404, detail="Not found")
     if clip["status"] != "ready":
-        raise HTTPException(status_code=400, detail=f"Clip is not ready (status: {clip['status']}).")
+        raise HTTPException(
+            status_code=400, detail=f"Clip is not ready (status: {clip['status']})."
+        )
 
     if svc.status != "ready":
         detail = (
@@ -391,6 +393,8 @@ def cancel_search(request: Request, clip_id: str, search_id: str) -> dict:
     if row is None or row["clip_id"] != clip_id:
         raise HTTPException(status_code=404, detail="Not found")
     if row["status"] not in ("queued", "running"):
-        raise HTTPException(status_code=400, detail=f"Search is not running (status: {row['status']}).")
+        raise HTTPException(
+            status_code=400, detail=f"Search is not running (status: {row['status']})."
+        )
     request.app.state.cancelled_searches.add(search_id)
     return {"cancelling": search_id}

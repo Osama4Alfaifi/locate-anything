@@ -1,4 +1,3 @@
-import io
 import time
 
 import cv2
@@ -6,7 +5,9 @@ import numpy as np
 import pytest
 
 
-def _make_clip_bytes(*, n_frames: int = 20, fps: float = 10.0, size: tuple[int, int] = (64, 48)) -> bytes:
+def _make_clip_bytes(
+    *, n_frames: int = 20, fps: float = 10.0, size: tuple[int, int] = (64, 48)
+) -> bytes:
     import tempfile
     from pathlib import Path
 

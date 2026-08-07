@@ -7,7 +7,9 @@ import pytest
 import video
 
 
-def _write_video(path: Path, *, n_frames: int = 30, fps: float = 10.0, size: tuple[int, int] = (64, 48)) -> None:
+def _write_video(
+    path: Path, *, n_frames: int = 30, fps: float = 10.0, size: tuple[int, int] = (64, 48)
+) -> None:
     w, h = size
     writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
     for i in range(n_frames):
