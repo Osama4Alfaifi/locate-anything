@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS clip_searches (
     frames_done     INTEGER NOT NULL DEFAULT 0,
     matches_json    TEXT,
     created_at      TEXT NOT NULL,
-    finished_at     TEXT
+    finished_at     TEXT,
+    read_plates     INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_clip_searches_clip ON clip_searches(clip_id);
 """
@@ -84,7 +85,17 @@ class Store:
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
+        # `CREATE TABLE IF NOT EXISTS` only creates a table the first time — it
+        # never adds columns to one that already exists on disk (a persistent
+        # volume from a previous version). New columns need an explicit,
+        # idempotent ALTER TABLE here.
+        self._ensure_column("clip_searches", "read_plates", "INTEGER NOT NULL DEFAULT 0")
         self._conn.commit()
+
+    def _ensure_column(self, table: str, column: str, coldef: str) -> None:
+        cols = {row[1] for row in self._conn.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coldef}")
 
     @staticmethod
     def new_id() -> str:
@@ -269,12 +280,23 @@ class Store:
         prompt: str,
         generation_mode: str,
         frames_total: int,
+        read_plates: bool = False,
     ) -> dict:
         self._conn.execute(
             """INSERT INTO clip_searches (id, clip_id, task, prompt, generation_mode, status,
-                   error, frames_total, frames_done, matches_json, created_at, finished_at)
-               VALUES (?, ?, ?, ?, ?, 'queued', NULL, ?, 0, NULL, ?, NULL)""",
-            (search_id, clip_id, task, prompt, generation_mode, frames_total, _now()),
+                   error, frames_total, frames_done, matches_json, created_at, finished_at,
+                   read_plates)
+               VALUES (?, ?, ?, ?, ?, 'queued', NULL, ?, 0, NULL, ?, NULL, ?)""",
+            (
+                search_id,
+                clip_id,
+                task,
+                prompt,
+                generation_mode,
+                frames_total,
+                _now(),
+                int(read_plates),
+            ),
         )
         self._conn.commit()
         return self.get_search(search_id)
@@ -318,6 +340,7 @@ class Store:
         d = dict(row)
         matches = d.pop("matches_json")
         d["matches"] = json.loads(matches) if matches else None
+        d["read_plates"] = bool(d["read_plates"])
         return d
 
     def reconcile_interrupted_jobs(self) -> None:

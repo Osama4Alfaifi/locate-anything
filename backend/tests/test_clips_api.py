@@ -148,6 +148,43 @@ def test_list_clips_includes_uploaded(client, clip_bytes):
     assert any(c["id"] == clip_id for c in body["items"])
 
 
+def test_search_with_read_plates_attaches_plate_reads(client, clip_bytes):
+    clip = _wait_for_clip_ready(client, _upload(client, clip_bytes).json()["id"])
+
+    r = client.post(
+        f"/api/clips/{clip['id']}/search",
+        data={
+            "task": "ground_multi",
+            "prompt": "a car",
+            "generation_mode": "fast",
+            "read_plates": "true",
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["read_plates"] is True
+
+    search = _wait_for_search_done(client, clip["id"], r.json()["id"])
+    assert search["read_plates"] is True
+    assert search["matches"]
+    for m in search["matches"]:
+        assert m["plate_reads"]
+        for pr in m["plate_reads"]:
+            assert pr["text"]
+            assert 0.0 <= pr["confidence"] <= 1.0
+            assert {"x1", "y1", "x2", "y2"} <= pr["box"].keys()
+
+
+def test_search_without_read_plates_has_empty_plate_reads(client, clip_bytes):
+    clip = _wait_for_clip_ready(client, _upload(client, clip_bytes).json()["id"])
+    r = client.post(
+        f"/api/clips/{clip['id']}/search",
+        data={"task": "ground_multi", "prompt": "a car", "generation_mode": "fast"},
+    )
+    assert r.json()["read_plates"] is False
+    search = _wait_for_search_done(client, clip["id"], r.json()["id"])
+    assert all(m["plate_reads"] == [] for m in search["matches"])
+
+
 def test_max_clip_seconds_override_rejects_long_clip(client, clip_bytes):
     # Settings is a frozen dataclass singleton (lru_cache) shared with app.state,
     # so mutate + restore it directly rather than via monkeypatch.setattr.

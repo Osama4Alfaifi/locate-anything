@@ -15,6 +15,7 @@ import InfoTip from "../components/InfoTip";
 import Scope from "../components/Scope";
 import Timeline from "../components/Timeline";
 import UploadDropzone from "../components/UploadDropzone";
+import { formatTime } from "../lib/time";
 
 const MODES: GenerationMode[] = ["fast", "hybrid", "slow"];
 const DECODE_HELP =
@@ -34,6 +35,7 @@ export default function DashcamPage() {
   const [task, setTask] = useState("ground_multi");
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<GenerationMode>("hybrid");
+  const [readPlates, setReadPlates] = useState(false);
   const [searchId, setSearchId] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<ClipMatch | null>(null);
 
@@ -63,6 +65,7 @@ export default function DashcamPage() {
     form.append("task", task);
     form.append("prompt", prompt);
     form.append("generation_mode", mode);
+    form.append("read_plates", String(readPlates));
     setSelectedMatch(null);
     startSearch.mutate({ clipId, form }, { onSuccess: (s) => setSearchId(s.id) });
   }
@@ -88,6 +91,18 @@ export default function DashcamPage() {
     !modelError;
 
   const scopeSrc = selectedMatch ? resolveUrl(selectedMatch.image_url) : null;
+  const scopeBoxes = useMemo(() => {
+    if (!selectedMatch) return [];
+    const plateBoxes = selectedMatch.plate_reads.map((pr) => ({ ...pr.box, label: pr.text }));
+    return [...selectedMatch.boxes, ...plateBoxes];
+  }, [selectedMatch]);
+
+  const bestPlateRead = useMemo(() => {
+    const all = (search?.matches ?? []).flatMap((m) =>
+      m.plate_reads.map((pr) => ({ ...pr, timestamp_ms: m.timestamp_ms })),
+    );
+    return all.length === 0 ? null : all.reduce((best, pr) => (pr.confidence > best.confidence ? pr : best));
+  }, [search?.matches]);
 
   return (
     <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[360px_1fr]">
@@ -171,6 +186,16 @@ export default function DashcamPage() {
           </div>
         </div>
 
+        <label className="flex items-center gap-2 font-mono text-xs text-ash">
+          <input
+            type="checkbox"
+            checked={readPlates}
+            onChange={(e) => setReadPlates(e.target.checked)}
+            className="h-3.5 w-3.5 accent-lime"
+          />
+          also read license plates
+        </label>
+
         <button
           onClick={runSearch}
           disabled={!canSearch}
@@ -231,7 +256,25 @@ export default function DashcamPage() {
           />
         )}
 
-        <Scope src={scopeSrc} boxes={selectedMatch?.boxes ?? []} points={selectedMatch?.points ?? []} />
+        <Scope src={scopeSrc} boxes={scopeBoxes} points={selectedMatch?.points ?? []} />
+
+        {search?.read_plates && search.status === "done" && (
+          <div className="panel p-3 font-mono text-xs">
+            {bestPlateRead ? (
+              <p>
+                <span className="text-ash">best plate read </span>
+                <span className="text-lime">{bestPlateRead.text}</span>
+                <span className="text-ash">
+                  {" "}
+                  · {Math.round(bestPlateRead.confidence * 100)}% · at{" "}
+                  {formatTime(bestPlateRead.timestamp_ms)}
+                </span>
+              </p>
+            ) : (
+              <p className="text-ash">plate reading was on — no plates read.</p>
+            )}
+          </div>
+        )}
 
         {clip && (
           <Timeline

@@ -13,8 +13,10 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
 
+import mock_ocr
+import ocr
 from config import VALID_MODES
-from schemas import ClipInfo, ClipList, ClipMatch, ClipSearchList, ClipSearchStatus
+from schemas import ClipInfo, ClipList, ClipMatch, ClipSearchList, ClipSearchStatus, PlateRead
 from storage import Store
 from tasks import DEFAULT_TASK, TASKS, build_prompt, parse_output
 from video import VideoDecodeError, extract_frames, probe
@@ -29,6 +31,10 @@ _VIDEO_EXT_BY_TYPE = {
 }
 _ALLOWED_SUFFIXES = {".mp4", ".mov", ".mkv", ".webm"}
 _CHUNK_SIZE = 1024 * 1024
+
+
+def _truthy(value: str) -> bool:
+    return value.strip().lower() in ("1", "true", "yes", "on")
 
 
 def _clip_video_url(clip_id: str) -> str:
@@ -70,6 +76,7 @@ def _to_search_status(row: dict, clip_id: str) -> ClipSearchStatus:
                 boxes=m["boxes"],
                 points=m["points"],
                 raw=m["raw"],
+                plate_reads=[PlateRead(**pr) for pr in m.get("plate_reads", [])],
             )
             for m in row["matches"]
         ]
@@ -86,6 +93,7 @@ def _to_search_status(row: dict, clip_id: str) -> ClipSearchStatus:
         matches=matches,
         created_at=row["created_at"],
         finished_at=row["finished_at"],
+        read_plates=row["read_plates"],
     )
 
 
@@ -125,6 +133,29 @@ def _run_ingest(state, clip_id: str, lock: threading.Lock) -> None:
         lock.release()
 
 
+_PLATE_TASK = "ground_text"
+_PLATE_PROMPT = "license plate"
+
+
+def _read_plates_for_frame(state, pil: Image.Image, mode: str) -> list[dict]:
+    """Locate plate-like text regions in `pil` (one extra grounding call) and
+    OCR each one. Returns [{"text", "confidence", "box"}, ...]."""
+    svc = state.svc
+    spec = TASKS[_PLATE_TASK]
+    full_prompt = build_prompt(_PLATE_TASK, _PLATE_PROMPT)
+    out = svc.engine.predict(pil, full_prompt, mode, output_type=spec.output_type)
+    parsed = parse_output(_PLATE_TASK, out.get("raw", ""), pil.width, pil.height)
+    read_fn = mock_ocr.read_plate_text if state.settings.mock else ocr.read_plate_text
+
+    reads: list[dict] = []
+    for box in parsed["boxes"]:
+        crop = ocr.crop_for_ocr(pil, box)
+        for fragment in read_fn(crop):
+            if fragment["text"].strip():
+                reads.append({**fragment, "box": box})
+    return reads
+
+
 def _run_search(
     state,
     clip_id: str,
@@ -134,9 +165,12 @@ def _run_search(
     mode: str,
     frames: list[dict],
     lock: threading.Lock,
+    read_plates: bool,
 ) -> None:
     """Background job: run the existing single-frame grounding pipeline over
-    every sampled frame, recording any frame with a non-empty result.
+    every sampled frame, recording any frame with a non-empty result. When
+    `read_plates` is set, matched frames also get an extra plate-locate +
+    OCR pass (see `_read_plates_for_frame`).
 
     Releases the specific `lock` instance the caller acquired (see `_run_ingest`).
     """
@@ -154,18 +188,18 @@ def _run_search(
             out = svc.engine.predict(pil, full_prompt, mode, output_type=spec.output_type)
             parsed = parse_output(task, out.get("raw", ""), frame["width"], frame["height"])
             if parsed["boxes"] or parsed["points"]:
-                matches.append(
-                    {
-                        "frame_id": frame["id"],
-                        "frame_index": frame["frame_index"],
-                        "timestamp_ms": frame["timestamp_ms"],
-                        "width": frame["width"],
-                        "height": frame["height"],
-                        "boxes": parsed["boxes"],
-                        "points": parsed["points"],
-                        "raw": out.get("raw", ""),
-                    }
-                )
+                match = {
+                    "frame_id": frame["id"],
+                    "frame_index": frame["frame_index"],
+                    "timestamp_ms": frame["timestamp_ms"],
+                    "width": frame["width"],
+                    "height": frame["height"],
+                    "boxes": parsed["boxes"],
+                    "points": parsed["points"],
+                    "raw": out.get("raw", ""),
+                    "plate_reads": _read_plates_for_frame(state, pil, mode) if read_plates else [],
+                }
+                matches.append(match)
             store.update_search_progress(search_id, frames_done=i + 1)
         store.finish_search(search_id, "done", matches=matches)
     except Exception as exc:  # noqa: BLE001
@@ -311,6 +345,7 @@ def start_search(
     task: str = Form(DEFAULT_TASK),
     prompt: str = Form(""),
     generation_mode: str = Form(""),
+    read_plates: str = Form("false"),
 ) -> ClipSearchStatus:
     state = request.app.state
     store: Store = state.store
@@ -350,6 +385,7 @@ def start_search(
             status_code=409, detail="Another clip job is already running — try again shortly."
         )
 
+    plates = _truthy(read_plates)
     frames = store.list_frames(clip_id)
     search_id = store.new_id()
     store.create_search(
@@ -359,10 +395,11 @@ def start_search(
         prompt=prompt,
         generation_mode=mode,
         frames_total=len(frames),
+        read_plates=plates,
     )
     threading.Thread(
         target=_run_search,
-        args=(state, clip_id, search_id, task, prompt, mode, frames, lock),
+        args=(state, clip_id, search_id, task, prompt, mode, frames, lock, plates),
         daemon=True,
     ).start()
     return _to_search_status(store.get_search(search_id), clip_id)

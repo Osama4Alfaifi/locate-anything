@@ -114,6 +114,12 @@ class ClipList(BaseModel):
     offset: int
 
 
+class PlateRead(BaseModel):
+    text: str
+    confidence: float
+    box: Box
+
+
 class ClipMatch(BaseModel):
     frame_id: str
     frame_index: int
@@ -124,6 +130,7 @@ class ClipMatch(BaseModel):
     boxes: list[Box]
     points: list[Point]
     raw: str
+    plate_reads: list[PlateRead] = []
 
 
 class ClipSearchStatus(BaseModel):
@@ -139,6 +146,7 @@ class ClipSearchStatus(BaseModel):
     matches: list[ClipMatch] | None = None
     created_at: str
     finished_at: str | None = None
+    read_plates: bool = False
 
 
 class ClipSearchList(BaseModel):

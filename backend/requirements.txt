@@ -20,5 +20,8 @@ decord==0.6.0
 lmdb==1.7.5
 accelerate
 
+# License-plate OCR (Dashcam Search "read plates" option) ---------------------
+easyocr
+
 # Optional, Hopper/Blackwell only — uncomment + see model card for build steps:
 # magiattention @ git+https://github.com/SandAI-org/MagiAttention.git@v1.0.5

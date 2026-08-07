@@ -1,17 +1,11 @@
 import type { ClipMatch } from "../api/types";
+import { formatTime } from "../lib/time";
 
 interface Props {
   durationS: number;
   matches: ClipMatch[];
   selectedFrameId: string | null;
   onSelect: (match: ClipMatch) => void;
-}
-
-function formatTime(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export default function Timeline({ durationS, matches, selectedFrameId, onSelect }: Props) {

@@ -110,6 +110,12 @@ export interface ClipList {
   offset: number;
 }
 
+export interface PlateRead {
+  text: string;
+  confidence: number;
+  box: Box;
+}
+
 export interface ClipMatch {
   frame_id: string;
   frame_index: number;
@@ -120,6 +126,7 @@ export interface ClipMatch {
   boxes: Box[];
   points: Point[];
   raw: string;
+  plate_reads: PlateRead[];
 }
 
 export interface ClipSearchStatus {
@@ -135,6 +142,7 @@ export interface ClipSearchStatus {
   matches: ClipMatch[] | null;
   created_at: string;
   finished_at: string | null;
+  read_plates: boolean;
 }
 
 export interface ClipSearchList {
